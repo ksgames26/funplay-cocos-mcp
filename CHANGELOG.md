@@ -6,6 +6,14 @@ This project follows a simple changelog format inspired by [Keep a Changelog](ht
 
 ## [Unreleased]
 
+## [0.3.1] - 2026-05-20
+
+### Added
+
+- Added a documented release workflow and release checklist for Cocos extension publishing.
+- Added release packaging scripts that generate a Cocos extension zip, release manifest, checksum file, and per-release README.
+- Added CI validation for release metadata.
+
 ## [0.3.0] - 2026-05-20
 
 ### Added

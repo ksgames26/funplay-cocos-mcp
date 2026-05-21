@@ -51,6 +51,8 @@ git clone https://github.com/FunplayAI/funplay-cocos-mcp.git extensions/funplay-
 
 然后重启 Cocos Creator，或在编辑器里重新加载扩展。
 
+如果不想用 git 安装，可以从 GitHub Releases 下载 `Funplay.CocosMcp.v<version>.zip`，解压后把 `funplay-cocos-mcp` 目录移动到项目的 `extensions/` 目录。
+
 你也可以把目录复制到 Cocos Creator 的全局用户扩展目录中。
 
 ### 2. 启动 MCP Server
@@ -362,11 +364,21 @@ Cocos Creator Extension
 
 ## 开发
 
-发布改动前可以跑语法检查：
+发布改动前可以跑检查：
 
 ```bash
 npm run check
+npm test
+npm run release:check
 ```
+
+生成可上传到 GitHub Release 的扩展包：
+
+```bash
+npm run release:package
+```
+
+产物会写入 `releases/<version>/`，包含 zip、manifest、checksum 和 release README。完整流程见 [RELEASE_WORKFLOW.md](./RELEASE_WORKFLOW.md) 和 [RELEASE_CHECKLIST.md](./RELEASE_CHECKLIST.md)。
 
 ## 协议
 

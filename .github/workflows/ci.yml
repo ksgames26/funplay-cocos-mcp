@@ -75,3 +75,6 @@ jobs:
 
       - name: Run tests
         run: npm test
+
+      - name: Run release metadata checks
+        run: npm run release:check

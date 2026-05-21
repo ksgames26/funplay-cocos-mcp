@@ -51,6 +51,8 @@ git clone https://github.com/FunplayAI/funplay-cocos-mcp.git extensions/funplay-
 
 Then restart Cocos Creator or reload extensions from the editor.
 
+For a non-git install, download `Funplay.CocosMcp.v<version>.zip` from the GitHub Releases page, unzip it, and move the extracted `funplay-cocos-mcp` folder into your project `extensions/` directory.
+
 You can also install it globally by copying the folder into your Cocos Creator user extensions directory.
 
 ### 2. Start the MCP Server
@@ -362,11 +364,21 @@ The server speaks MCP-style HTTP JSON-RPC 2.0 and supports tools, resources, res
 
 ## Development
 
-Run a syntax check before publishing changes:
+Run checks before publishing changes:
 
 ```bash
 npm run check
+npm test
+npm run release:check
 ```
+
+To generate a GitHub Release-ready extension package:
+
+```bash
+npm run release:package
+```
+
+The package is written to `releases/<version>/` with a zip, manifest, checksum file, and release README. See [RELEASE_WORKFLOW.md](./RELEASE_WORKFLOW.md) and [RELEASE_CHECKLIST.md](./RELEASE_CHECKLIST.md) for the full process.
 
 ## License
 
