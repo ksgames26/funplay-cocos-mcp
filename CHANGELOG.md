@@ -6,9 +6,42 @@ This project follows a simple changelog format inspired by [Keep a Changelog](ht
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-06-11
+
+### Added
+
+- Added project identity metadata to `/health` and MCP `initialize` responses so clients and duplicate listeners can verify the active Cocos project safely.
+- Added same-project listener attach behavior before port fallback, preventing accidental attachment to a different Cocos project on the same port.
+- Added default-on JavaScript safety checks for `execute_javascript`, `execute_scene_script`, and `execute_editor_script`, with per-call `safety_checks` overrides.
+- Added named tool profiles in the Cocos panel, including save, apply, delete, import, and export workflows.
+- Added category-level tool exposure controls in the panel for quick enable, disable, and clear actions.
+- Added asset dependency tools: `inspect_asset_dependencies` and `validate_asset_dependencies`.
+- Added Cocos project/editor tools: `get_build_status`, `open_build_panel`, `run_project_preview`, `save_current_scene`, `get_editor_preference`, `set_editor_preference`, and `broadcast_editor_message`.
+- Added Button event binding tools: `list_button_click_events` and `bind_button_click_event`.
+- Added `create_cocos_mcp_project_skill` for generating a recommended local Codex workflow skill.
+- Added release package sensitive-content scanning for npm/GitHub/MCP token-like values and private keys.
+
+### Optimized
+
+- Improved tool exposure UX for larger projects by making custom profiles reusable and shareable.
+- Expanded generated tool documentation and README coverage for the new 37-tool `core` profile and 101-tool `full` profile.
+- Improved release packaging confidence with checksum verification and content scanning.
+
+### Changed
+
+- Expanded the default `core` profile from 34 tools to 37 tools.
+- Expanded the `full` profile from 89 tools to 101 tools.
+- Split more tool implementations into focused modules under `lib/tools/`, including advanced assets, Cocos project/editor helpers, and scene event helpers.
+- Persisted `executeJavascriptSafetyChecks`, active tool profile names, and saved tool profiles in project configuration.
+
 ### Fixed
 
 - Fixed the GitHub Release workflow so release pages use generated English changelog-style `RELEASE_NOTES.md` instead of the artifact installation README.
+- Fixed release package scanning false positives around normal MCP server config names while preserving credential detection.
+
+### Security
+
+- Added guardrails for JavaScript execution against obvious risky file-system and shell patterns, including delete/truncate calls, raw writable streams, path traversal, user/system absolute paths, and `child_process`.
 
 ## [0.3.3] - 2026-05-20
 

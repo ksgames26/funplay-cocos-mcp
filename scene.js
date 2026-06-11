@@ -16,6 +16,7 @@ const {
   SceneAsset,
   js,
   Component,
+  EventHandler,
   Canvas,
   UITransform,
   Label,
@@ -239,6 +240,23 @@ function findComponent(node, options = {}) {
   }
 
   return null;
+}
+
+function getEventHandlerClass() {
+  return (Component && Component.EventHandler) || EventHandler || null;
+}
+
+function serializeEventHandler(handler) {
+  if (!handler) {
+    return null;
+  }
+  return {
+    target: handler.target && handler.target.name ? getNodePath(handler.target) : '',
+    targetUuid: handler.target && handler.target.uuid ? handler.target.uuid : '',
+    component: handler.component || '',
+    handler: handler.handler || '',
+    customEventData: handler.customEventData || '',
+  };
 }
 
 function getOrAddComponent(node, componentClass) {
@@ -1342,6 +1360,101 @@ exports.methods = {
       clicked: true,
       node: getNodePath(node),
       clickEventCount: Array.isArray(button.clickEvents) ? button.clickEvents.length : 0,
+    };
+  },
+
+  async listButtonClickEvents(options = {}) {
+    const node = findNode(options);
+    if (!node) {
+      throw new Error('Target node was not found.');
+    }
+    const button = node.getComponent(Button);
+    if (!button) {
+      throw new Error('Button component was not found on target node.');
+    }
+
+    return {
+      node: getNodePath(node),
+      uuid: node.uuid,
+      clickEventCount: Array.isArray(button.clickEvents) ? button.clickEvents.length : 0,
+      clickEvents: Array.isArray(button.clickEvents)
+        ? button.clickEvents.map(serializeEventHandler).filter(Boolean)
+        : [],
+    };
+  },
+
+  async bindButtonClickEvent(options = {}) {
+    const node = findNode(options);
+    if (!node) {
+      throw new Error('Button node was not found.');
+    }
+    const button = node.getComponent(Button);
+    if (!button) {
+      throw new Error('Button component was not found on target node.');
+    }
+
+    const target = findNode({
+      path: options.targetPath,
+      uuid: options.targetUuid,
+      name: options.targetName,
+    });
+    if (!target) {
+      throw new Error('Event target node was not found.');
+    }
+
+    const componentName = String(options.componentName || '').trim();
+    const handlerName = String(options.handler || options.handlerName || '').trim();
+    if (!componentName || !handlerName) {
+      throw new Error('componentName and handler are required.');
+    }
+
+    const component = findComponent(target, { componentName });
+    if (!component) {
+      throw new Error(`Target component was not found: ${componentName}`);
+    }
+    if (typeof component[handlerName] !== 'function') {
+      throw new Error(`Target component method was not found: ${componentName}.${handlerName}`);
+    }
+
+    const HandlerClass = getEventHandlerClass();
+    if (!HandlerClass) {
+      throw new Error('Cocos EventHandler class is unavailable.');
+    }
+
+    const existing = Array.isArray(button.clickEvents) ? button.clickEvents : [];
+    const duplicate = existing.find((event) => (
+      event &&
+      event.target === target &&
+      event.component === componentName &&
+      event.handler === handlerName &&
+      String(event.customEventData || '') === String(options.customEventData || '')
+    ));
+    if (duplicate && options.replace !== true) {
+      return {
+        bound: false,
+        duplicate: true,
+        node: getNodePath(node),
+        event: serializeEventHandler(duplicate),
+        clickEventCount: existing.length,
+      };
+    }
+
+    const event = new HandlerClass();
+    event.target = target;
+    event.component = componentName;
+    event.handler = handlerName;
+    event.customEventData = String(options.customEventData || '');
+
+    button.clickEvents = options.replace === true
+      ? existing.filter((item) => item !== duplicate).concat(event)
+      : existing.concat(event);
+
+    return {
+      bound: true,
+      node: getNodePath(node),
+      uuid: node.uuid,
+      event: serializeEventHandler(event),
+      clickEventCount: button.clickEvents.length,
     };
   },
 

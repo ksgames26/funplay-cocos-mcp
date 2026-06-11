@@ -21,11 +21,13 @@ function createRegistry(profile, projectPath = path.resolve('/tmp/funplay-cocos-
 
 test('core profile exposes the documented focused tool set', () => {
   const tools = createRegistry('core').listTools();
-  assert.equal(tools.length, 34);
+  assert.equal(tools.length, 37);
   assert.equal(tools.some((tool) => tool.name === 'execute_javascript'), true);
   assert.equal(tools.some((tool) => tool.name === 'get_editor_state'), true);
   assert.equal(tools.some((tool) => tool.name === 'get_tool_catalog'), true);
   assert.equal(tools.some((tool) => tool.name === 'validate_scene'), true);
+  assert.equal(tools.some((tool) => tool.name === 'inspect_asset_dependencies'), true);
+  assert.equal(tools.some((tool) => tool.name === 'get_build_status'), true);
   assert.equal(tools.some((tool) => tool.name === 'get_performance_snapshot'), true);
   assert.equal(tools.some((tool) => tool.name === 'list_project_instructions'), true);
   assert.equal(tools.some((tool) => tool.name === 'set_selection'), true);
@@ -34,10 +36,14 @@ test('core profile exposes the documented focused tool set', () => {
 
 test('full profile exposes all built-in tools', () => {
   const tools = createRegistry('full').listTools();
-  assert.equal(tools.length, 89);
+  assert.equal(tools.length, 101);
   assert.equal(tools.some((tool) => tool.name === 'write_file'), true);
   assert.equal(tools.some((tool) => tool.name === 'edit_prefab_json'), true);
   assert.equal(tools.some((tool) => tool.name === 'create_project_skill'), true);
+  assert.equal(tools.some((tool) => tool.name === 'create_cocos_mcp_project_skill'), true);
+  assert.equal(tools.some((tool) => tool.name === 'bind_button_click_event'), true);
+  assert.equal(tools.some((tool) => tool.name === 'open_build_panel'), true);
+  assert.equal(tools.some((tool) => tool.name === 'broadcast_editor_message'), true);
   assert.equal(tools.some((tool) => tool.name === 'get_editor_state'), true);
   assert.equal(tools.some((tool) => tool.name === 'set_selection'), true);
 });
@@ -97,4 +103,35 @@ test('callToolDetailed preserves screenshot image text while keeping structured 
   assert.equal(result.text, dataUri);
   assert.equal(result.value.data.image, true);
   assert.equal(result.value.data.mimeType, 'image/png');
+});
+
+test('execute_javascript safety checks block risky editor snippets by default', async () => {
+  const registry = createRegistry('core');
+
+  await assert.rejects(
+    () => registry.callToolDetailed('execute_javascript', {
+      context: 'editor',
+      code: "fs.rmSync(path.join(context.projectPath, 'assets'), { recursive: true });",
+    }),
+    /JavaScript safety checks blocked/
+  );
+});
+
+test('execute_javascript safety checks can be explicitly disabled per call', async () => {
+  let called = false;
+  const registry = createRegistry('core', path.resolve('/tmp/funplay-cocos-test-project'), {}, {
+    editorExecutor: async () => {
+      called = true;
+      return { ok: true };
+    },
+  });
+
+  const result = await registry.callToolDetailed('execute_javascript', {
+    context: 'editor',
+    code: "fs.rmSync(path.join(context.projectPath, 'assets'), { recursive: true });",
+    safety_checks: false,
+  });
+
+  assert.equal(called, true);
+  assert.equal(result.value.ok, true);
 });

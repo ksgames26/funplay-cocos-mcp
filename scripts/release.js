@@ -84,6 +84,13 @@ const FORBIDDEN_NAMES = new Set([
   '.DS_Store'
 ]);
 
+const FORBIDDEN_CONTENT_PATTERNS = [
+  ['npm token', /\bnpm_[A-Za-z0-9]{20,}\b/],
+  ['GitHub token', /\bgh[pousr]_[A-Za-z0-9_]{30,}\b/],
+  ['MCP token', /\bmcp_[A-Za-z0-9_-]{32,}\b/],
+  ['private key', /-----BEGIN [A-Z ]*PRIVATE KEY-----/]
+];
+
 function main() {
   const command = process.argv[2] || 'check';
   const options = parseOptions(process.argv.slice(3));
@@ -252,6 +259,7 @@ function packageRelease(context) {
   const stagedFiles = collectFiles(stagingRoot)
     .map((filePath) => path.relative(TEMP_DIR, filePath).split(path.sep).join('/'));
   validateArchivePaths(stagedFiles);
+  validateArchiveContent(collectFiles(stagingRoot));
 
   run('zip', ['-qr', zipPath, PACKAGE_DIR_NAME], { cwd: TEMP_DIR });
   validateZipListing(zipPath);
@@ -507,6 +515,30 @@ function validateZipListing(zipPath) {
     .map((line) => line.trim())
     .filter(Boolean);
   validateArchivePaths(listing);
+}
+
+function validateArchiveContent(filePaths) {
+  const bad = [];
+  for (const filePath of filePaths) {
+    const stat = fs.statSync(filePath);
+    if (stat.size > 1024 * 1024) {
+      continue;
+    }
+    const buffer = fs.readFileSync(filePath);
+    if (buffer.includes(0)) {
+      continue;
+    }
+    const text = buffer.toString('utf8');
+    for (const [label, pattern] of FORBIDDEN_CONTENT_PATTERNS) {
+      if (pattern.test(text)) {
+        bad.push(`${path.relative(ROOT, filePath)} (${label})`);
+      }
+    }
+  }
+
+  if (bad.length > 0) {
+    throw new Error(`Release archive contains sensitive-looking content:\n- ${bad.join('\n- ')}`);
+  }
 }
 
 function isForbiddenTrackedPath(relative) {

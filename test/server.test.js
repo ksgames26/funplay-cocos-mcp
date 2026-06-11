@@ -9,7 +9,7 @@ const {
   SUPPORTED_PROTOCOL_VERSIONS,
 } = require('../lib/server');
 
-function createServer(toolRegistry = {}, config = {}) {
+function createServer(toolRegistry = {}, config = {}, options = {}) {
   return new McpServer({
     config: { host: '127.0.0.1', port: 8765, ...config },
     toolRegistry: {
@@ -28,8 +28,10 @@ function createServer(toolRegistry = {}, config = {}) {
     },
     interactionLog: { add() {} },
     runtimeLog: { add() {} },
-    serverName: 'test-server',
-    serverVersion: '0.0.0-test',
+    serverName: options.serverName || 'test-server',
+    serverVersion: options.serverVersion || '0.0.0-test',
+    projectName: options.projectName || 'test-project',
+    projectIdentity: options.projectIdentity || 'test-project-id',
   });
 }
 
@@ -104,6 +106,7 @@ test('initialize negotiates the current MCP protocol version by default', async 
 
   assert.equal(response.result.protocolVersion, MCP_PROTOCOL_VERSION);
   assert.equal(response.result.serverInfo.name, 'test-server');
+  assert.equal(response.result.funplay.projectIdentity, 'test-project-id');
 });
 
 test('initialize can negotiate an older supported MCP protocol version', async () => {
@@ -283,6 +286,67 @@ test('HTTP GET /tools returns debug tool metadata and curl examples', async () =
     assert.match(payload.examples.tools, /curl http:\/\/127\.0\.0\.1:\d+\/tools/);
   } finally {
     await server.stop();
+  }
+});
+
+test('HTTP GET /health returns project identity metadata', async () => {
+  const server = createServer({}, { port: 0 }, { projectIdentity: 'health-project-id' });
+  await server.start();
+  try {
+    const response = await httpGet(server.getPort(), '/health');
+    const payload = JSON.parse(response.body);
+
+    assert.equal(response.statusCode, 200);
+    assert.equal(payload.ok, true);
+    assert.equal(payload.projectName, 'test-project');
+    assert.equal(payload.projectIdentity, 'health-project-id');
+  } finally {
+    await server.stop();
+  }
+});
+
+test('start attaches to an existing same-project listener on the configured port', async () => {
+  const owner = createServer({}, { port: 0 }, { projectIdentity: 'same-project' });
+  await owner.start();
+  const attached = createServer({}, { port: owner.getPort() }, { projectIdentity: 'same-project' });
+
+  try {
+    await attached.start();
+
+    assert.equal(attached.isRunning(), true);
+    assert.equal(attached.getPort(), owner.getPort());
+    assert.equal(attached.getAttachInfo().projectIdentity, 'same-project');
+
+    await attached.stop();
+    assert.equal(attached.isRunning(), false);
+
+    const response = await httpGet(owner.getPort(), '/health');
+    assert.equal(response.statusCode, 200);
+  } finally {
+    if (attached.isRunning()) {
+      await attached.stop();
+    }
+    await owner.stop();
+  }
+});
+
+test('start falls back instead of attaching to a different project listener', async () => {
+  const owner = createServer({}, { port: 0 }, { projectIdentity: 'owner-project' });
+  await owner.start();
+  const contender = createServer({}, { port: owner.getPort() }, { projectIdentity: 'other-project' });
+
+  try {
+    await contender.start();
+
+    assert.equal(contender.isRunning(), true);
+    assert.notEqual(contender.getPort(), owner.getPort());
+    assert.equal(contender.getAttachInfo(), null);
+    assert.equal(contender.getPortFallbackInfo().requestedPort, owner.getPort());
+  } finally {
+    if (contender.isRunning()) {
+      await contender.stop();
+    }
+    await owner.stop();
   }
 });
 

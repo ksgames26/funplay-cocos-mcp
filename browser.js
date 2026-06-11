@@ -5,7 +5,7 @@ const fs = require('fs');
 const os = require('os');
 const manifest = require('./package.json');
 const { SERVER_NAME, buildTargets, configureTarget, getTargetStatuses } = require('./lib/client-config');
-const { loadConfig, getProjectPath, getProjectName, getCocosVersion } = require('./lib/config');
+const { loadConfig, getProjectPath, getProjectName, getProjectIdentity, getCocosVersion } = require('./lib/config');
 const { McpServer } = require('./lib/server');
 const { createToolRegistry } = require('./lib/tool-registry');
 const { ResourceProvider } = require('./lib/resources');
@@ -13,6 +13,7 @@ const { PromptProvider } = require('./lib/prompts');
 const { InteractionLog } = require('./lib/interaction-log');
 const { RuntimeLog } = require('./lib/runtime-log');
 const { checkForUpdate } = require('./lib/update-checker');
+const { normalizeSavedToolProfiles } = require('./lib/tool-profiles');
 
 const EXTENSION_NAME = manifest.name || 'funplay-cocos-mcp';
 const LOG_PREFIX = '[Funplay Cocos MCP]';
@@ -101,6 +102,7 @@ class ExtensionService {
       config: this.config,
       projectPath: getProjectPath(),
       projectName: getProjectName(),
+      projectIdentity: getProjectIdentity(),
       cocosVersion: getCocosVersion(),
       packagePath: path.dirname(__filename),
     });
@@ -134,6 +136,8 @@ class ExtensionService {
       promptProvider: this.promptProvider,
       serverName: `Funplay Cocos MCP - ${getProjectName()}`,
       serverVersion: manifest.version || '0.0.0',
+      projectName: getProjectName(),
+      projectIdentity: getProjectIdentity(),
     });
 
     await this.server.start();
@@ -178,8 +182,13 @@ class ExtensionService {
     const fallbackInfo = this.server && this.server.isRunning() && typeof this.server.getPortFallbackInfo === 'function'
       ? this.server.getPortFallbackInfo()
       : null;
+    const attachInfo = this.server && this.server.isRunning() && typeof this.server.getAttachInfo === 'function'
+      ? this.server.getAttachInfo()
+      : null;
     return {
       running: Boolean(this.server && this.server.isRunning()),
+      attachedToExisting: Boolean(attachInfo),
+      attachInfo,
       host: this.config.host,
       port: effective.port,
       requestedPort: this.config.port,
@@ -191,10 +200,14 @@ class ExtensionService {
       enabledToolCategories: this.config.enabledToolCategories,
       disabledToolCategories: this.config.disabledToolCategories,
       enableSessions: this.config.enableSessions,
+      executeJavascriptSafetyChecks: this.config.executeJavascriptSafetyChecks,
       autostart: this.config.autostart,
+      activeToolProfileName: this.config.activeToolProfileName,
+      savedToolProfiles: this.config.savedToolProfiles,
       version: manifest.version || '0.0.0',
       projectPath: getProjectPath(),
       projectName: getProjectName(),
+      projectIdentity: getProjectIdentity(),
       cocosVersion: getCocosVersion(),
       url: effective.url,
     };
@@ -416,6 +429,9 @@ class ExtensionService {
       enableSessions: partialConfig && typeof partialConfig.enableSessions === 'boolean'
         ? partialConfig.enableSessions
         : this.config.enableSessions,
+      executeJavascriptSafetyChecks: partialConfig && typeof partialConfig.executeJavascriptSafetyChecks === 'boolean'
+        ? partialConfig.executeJavascriptSafetyChecks
+        : this.config.executeJavascriptSafetyChecks,
       autostart: partialConfig && typeof partialConfig.autostart === 'boolean'
         ? partialConfig.autostart
         : this.config.autostart,
@@ -425,6 +441,12 @@ class ExtensionService {
       lastClientTargetId: partialConfig && partialConfig.lastClientTargetId
         ? String(partialConfig.lastClientTargetId)
         : this.config.lastClientTargetId,
+      activeToolProfileName: partialConfig && typeof partialConfig.activeToolProfileName === 'string'
+        ? String(partialConfig.activeToolProfileName)
+        : this.config.activeToolProfileName,
+      savedToolProfiles: partialConfig && Array.isArray(partialConfig.savedToolProfiles)
+        ? normalizeSavedToolProfiles(partialConfig.savedToolProfiles)
+        : this.config.savedToolProfiles,
     };
 
     const configPath = this.config.configPath;
@@ -435,6 +457,7 @@ class ExtensionService {
       nextConfig.port !== this.config.port ||
       nextConfig.toolProfile !== this.config.toolProfile ||
       nextConfig.enableSessions !== this.config.enableSessions ||
+      nextConfig.executeJavascriptSafetyChecks !== this.config.executeJavascriptSafetyChecks ||
       JSON.stringify(nextConfig.enabledTools) !== JSON.stringify(this.config.enabledTools) ||
       JSON.stringify(nextConfig.disabledTools) !== JSON.stringify(this.config.disabledTools) ||
       JSON.stringify(nextConfig.enabledToolCategories) !== JSON.stringify(this.config.enabledToolCategories) ||

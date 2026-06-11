@@ -30,6 +30,7 @@ Use this checklist before publishing a new release of Funplay MCP for Cocos.
 - [ ] The zip contains stdio wrapper metadata: `bin/funplay-cocos-mcp.js` and `server.json`
 - [ ] The zip includes docs: `README.md`, `README_CN.md`, `CHANGELOG.md`, `CONTRIBUTING.md`, and `LICENSE`
 - [ ] The zip does not contain `.git/`, `.github/`, `.DS_Store`, `node_modules/`, `Library/`, `Temp/`, `dist/`, `build/`, `test/`, or `scripts/`
+- [ ] Release packaging sensitive-content scan does not find npm/GitHub/MCP tokens or private keys
 - [ ] `release-manifest.json` references the correct GitHub download URL
 - [ ] `SHA256SUMS.txt` includes the zip, manifest, generated release notes, and release README
 
